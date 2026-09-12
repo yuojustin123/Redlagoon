@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Redlagoon — Admin</title>
+<meta name="robots" content="noindex, nofollow">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;600;800&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDaV_vfrZweV2j0Er6ImiIcoDyKIf3Hh9s",
+    authDomain: "redlagoon-31d49.firebaseapp.com",
+    projectId: "redlagoon-31d49",
+    storageBucket: "redlagoon-31d49.firebasestorage.app",
+    messagingSenderId: "728145502294",
+    appId: "1:728145502294:web:97431007f4720b95b25bf7"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+</script>
+<style>
+  :root{
+    --night: #0a0607;
+    --night-2: #140b0d;
+    --blood: #c31432;
+    --blood-bright: #ff3450;
+    --sakura: #f3b8ca;
+    --gold: #d9a441;
+    --paper: #ece2d6;
+    --paper-dim: #b9a89b;
+    --line: rgba(243,184,202,0.14);
+  }
+  *{ box-sizing: border-box; }
+  body{
+    margin:0; min-height:100vh;
+    background: var(--night);
+    color: var(--paper);
+    font-family: 'Noto Sans JP', sans-serif;
+    display:flex; align-items:center; justify-content:center;
+    padding: 24px;
+  }
+  h1{ font-family:'Shippori Mincho', serif; font-size:22px; margin:0 0 6px; }
+  p.sub{ color: var(--paper-dim); font-size:14px; margin:0 0 24px; }
+  .card{
+    width:100%; max-width: 480px;
+    background: var(--night-2);
+    border: 1px solid var(--line);
+    padding: 30px;
+  }
+  label{ display:block; font-size:12.5px; color: var(--paper-dim); margin-bottom:7px; }
+  input, select, textarea{
+    width:100%;
+    background: var(--night);
+    border: 1px solid var(--line);
+    color: var(--paper);
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size:14px;
+    padding: 11px 12px;
+    border-radius: 2px;
+    margin-bottom: 18px;
+  }
+  textarea{ min-height: 90px; resize: vertical; }
+  button{
+    width:100%;
+    background: var(--blood);
+    color: var(--paper);
+    border:none;
+    padding: 14px;
+    font-size:14px;
+    letter-spacing:0.03em;
+    border-radius:2px;
+    cursor:pointer;
+  }
+  button:hover{ background: var(--blood-bright); }
+  button:disabled{ opacity:0.5; cursor:default; }
+  #status{ font-size:13px; color: var(--paper-dim); margin-top:14px; text-align:center; }
+  #gate input{ margin-bottom: 14px; }
+</style>
+</head>
+<body>
+
+  <div class="card" id="gate">
+    <h1>Redlagoon Admin</h1>
+    <p class="sub">Enter the admin password to continue.</p>
+    <input type="password" id="gatePassword" placeholder="Password">
+    <button id="gateSubmit">Enter</button>
+    <p id="gateStatus" style="color:var(--blood-bright); font-size:13px; margin-top:12px; display:none;">Wrong password.</p>
+  </div>
+
+  <div class="card" id="panel" style="display:none;">
+    <h1>Post an announcement</h1>
+    <p class="sub">This goes to both your website's Dispatches and your Discord channel at once.</p>
+    <label for="title">Title</label>
+    <input type="text" id="title" placeholder="e.g. New member welcome night">
+    <label for="description">Details</label>
+    <textarea id="description" placeholder="A sentence or two"></textarea>
+    <label for="tag">Tag</label>
+    <select id="tag">
+      <option>Community</option>
+      <option>Recruitment</option>
+      <option>Recap</option>
+      <option>Looking</option>
+      <option>Update</option>
+    </select>
+    <button id="postBtn">Post Announcement</button>
+    <p id="status"></p>
+  </div>
+
+<script>
+  const DISCORD_WEBHOOK = 'https://discord.com/api/webhooks/1547605747637157960/eG4OHuE-XtgkhjcAxzdU17Z2m9io6LhNnL1sBpi0ooWl-P1LozRlBQUISRw0ejNKMD4s';
+  const ADMIN_PASSWORD = 'redlagoon2026'; // change this to your own password
+
+  const gate = document.getElementById('gate');
+  const panel = document.getElementById('panel');
+  document.getElementById('gateSubmit').addEventListener('click', checkPassword);
+  document.getElementById('gatePassword').addEventListener('keydown', (e) => { if (e.key === 'Enter') checkPassword(); });
+
+  function checkPassword(){
+    const val = document.getElementById('gatePassword').value;
+    if (val === ADMIN_PASSWORD) {
+      gate.style.display = 'none';
+      panel.style.display = 'block';
+    } else {
+      document.getElementById('gateStatus').style.display = 'block';
+    }
+  }
+
+  document.getElementById('postBtn').addEventListener('click', () => {
+    const title = document.getElementById('title').value.trim();
+    const description = document.getElementById('description').value.trim();
+    const tag = document.getElementById('tag').value;
+    const status = document.getElementById('status');
+    if (!title) { alert('Add a title first.'); return; }
+
+    const btn = document.getElementById('postBtn');
+    btn.disabled = true;
+    status.textContent = 'Posting…';
+
+    db.collection('dispatches').add({
+      title: title,
+      description: description,
+      tag: tag,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(() => {
+      return fetch(DISCORD_WEBHOOK, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: `**${title}**\n${description}\n_${tag}_`
+        })
+      });
+    }).then(() => {
+      status.textContent = 'Posted to the website and Discord.';
+      document.getElementById('title').value = '';
+      document.getElementById('description').value = '';
+      btn.disabled = false;
+    }).catch(() => {
+      status.textContent = "Something went wrong — please try again.";
+      btn.disabled = false;
+    });
+  });
+</script>
+
+</body>
+</html>
